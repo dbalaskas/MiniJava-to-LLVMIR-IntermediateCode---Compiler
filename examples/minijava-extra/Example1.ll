@@ -21,11 +21,11 @@ define void @throw_oob() {
 }
 
 define i32 @main() {
+
 	%_0 = call i8* @calloc(i32 1, i32 12)
 	%_1 = bitcast i8* %_0 to i8***
 	%_2 = getelementptr [1 x i8*], [1 x i8*]* @.Test1_vtable, i32 0, i32 0
 	store i8** %_2, i8*** %_1
-
 	; Test1.Start : 0
 	%_3 = bitcast i8* %_0 to i8***
 	%_4 = load i8**, i8*** %_3
@@ -33,7 +33,6 @@ define i32 @main() {
 	%_6 = load i8*, i8** %_5
 	%_7 = bitcast i8* %_6 to i32 (i8*, i32, i1)*
 	%_8 = call i32 %_7(i8* %_0, i32 5, i1 1)
-
 	call void (i32) @print_int(i32 %_8)
 
 	ret i32 0
@@ -50,53 +49,59 @@ define i32 @Test1.Start(i8* %this, i32 %.b, i1 %.c) {
 
 	%ourint = alloca i32
 
+
 	%_0 = load i32, i32* %b
 	%_1 = add i32 1, %_0
 	%_2 = icmp sge i32 %_1, 1
-	br i1 %_2, label %oob_safe4, label %oob_error5
+	br i1 %_2, label %oob_safe3, label %oob_error4
 
-%oob_error5:
+oob_error4:
 	call void @throw_oob()
-%oob_safe4:
-	%_1 = add i32 1, %_0
-	%_2 = call i8* @calloc(i32 %_1 , i32 4)
-	%_3 = bitcast i8* %_2 to i32*
-	store %_0, i32* %_3
 
-	store i32* %_3, i32** %nti
-	%_6 = load i32*, i32** %nti
-	%_7 = load i32, [Ljava.lang.String;@22d8cfe0
-	%_8 = icmp sge [Ljava.lang.String;@579bb367, 0
-	%_11 = icmp slt [Ljava.lang.String;@579bb367, %_7
-	%_12 = and i1 %_8, %_11
-	br i1 %_12, label %oob_safe9, label %oob_error10
+	br label %oob_safe3
 
-%oob_error10:
+oob_safe3:
+	%_5 = add i32 1, %_0
+	%_6 = call i8* @calloc(i32 %_5 , i32 4)
+	%_7 = bitcast i8* %_6 to i32*
+	store i32 %_0, i32* %_7
+
+	store i32* %_7, i32** %nti
+
+	%_8 = load i32*, i32** %nti
+	%_9 = load i32, i32* %_8
+	%_10 = icmp sge i32 0, 0
+	%_13 = icmp slt i32 0, %_9
+	%_14 = and i1 %_10, %_13
+	br i1 %_14, label %oob_safe11, label %oob_error12
+
+oob_error12:
 	call void @throw_oob()
-	br label %oob_safe9
+	br label %oob_safe11
 
-%oob_safe9:
-	%_13 = add [Ljava.lang.String;@579bb367, 1
-	%_14 = getelementptr i32, [Ljava.lang.String;@22d8cfe0, i32 %_13
-	%_15 = load i32, i32* %_14
-	store i32 %_15, i32* %ourint
-	%_16 = load i32, i32* %ourint
-	call void (i32) @print_int(i32 %_16)
-	%_17 = load i32*, i32** %nti
-	%_18 = load i32, [Ljava.lang.String;@1de0aca6
-	%_19 = icmp sge [Ljava.lang.String;@255316f2, 0
-	%_22 = icmp slt [Ljava.lang.String;@255316f2, %_18
-	%_23 = and i1 %_19, %_22
-	br i1 %_23, label %oob_safe20, label %oob_error21
+oob_safe11:
+	%_15 = add i32 0, 1
+	%_16 = getelementptr i32, i32* %_8, i32 %_15
+	%_17 = load i32, i32* %_16
+	store i32 %_17, i32* %ourint
 
-%oob_error21:
+	%_18 = load i32, i32* %ourint
+	call void (i32) @print_int(i32 %_18)
+	%_19 = load i32*, i32** %nti
+	%_20 = load i32, i32* %_19
+	%_21 = icmp sge i32 0, 0
+	%_24 = icmp slt i32 0, %_20
+	%_25 = and i1 %_21, %_24
+	br i1 %_25, label %oob_safe22, label %oob_error23
+
+oob_error23:
 	call void @throw_oob()
-	br label %oob_safe20
+	br label %oob_safe22
 
-%oob_safe20:
-	%_24 = add [Ljava.lang.String;@255316f2, 1
-	%_25 = getelementptr i32, [Ljava.lang.String;@1de0aca6, i32 %_24
-	%_26 = load i32, i32* %_25
-	ret i32 %_26
+oob_safe22:
+	%_26 = add i32 0, 1
+	%_27 = getelementptr i32, i32* %_19, i32 %_26
+	%_28 = load i32, i32* %_27
+	ret i32 %_28
 }
 

@@ -20,6 +20,7 @@ define void @throw_oob() {
 }
 
 define i32 @main() {
+
 	%_0 = add i32 12, 21
 	call void (i32) @print_int(i32 %_0)
 

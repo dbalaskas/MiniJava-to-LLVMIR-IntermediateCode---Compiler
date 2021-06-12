@@ -347,10 +347,6 @@ class Visitor {
 
 	return 0;
     }
-
-	public int hi() {
-		return 1;
-	}
 }
 
 

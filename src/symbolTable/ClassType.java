@@ -52,6 +52,50 @@ public class ClassType extends SymbolTableNode {
         this.fieldOffset  = superClass.fieldOffset;
     }
 
+    public List<MethodType> getSuperMethods() {
+        List<MethodType> superMethods = new ArrayList<MethodType>(); 
+        if (this.superClass != null) {
+            superMethods = this.superClass.getSuperMethods();
+        }
+        
+        MethodType curMethod;
+        int j;
+        int superMethodsCount = superMethods.size();
+        for (int i=0; i < this.getMethodsCount(); i++) {
+            curMethod = this.methods.get(i);
+            for (j=0; j < superMethodsCount; j++) {
+                if (superMethods.get(j).getName().equals(curMethod.getName())) {
+                    superMethods.set(i, curMethod);
+                    break;
+                }
+            }
+            if (j >= superMethodsCount) {
+                superMethods.add(curMethod);
+            }
+        }
+        return superMethods;
+    }
+
+    public int getMethodIndex(String methodName) {
+        MethodType curMethod = this.getMethod(methodName);
+        return this.getSuperMethods().indexOf(curMethod);
+    }
+
+    public int getSuperMethodsCount() {
+        return this.getSuperMethods().size();
+    }
+
+    public int getSuperFieldsSize() {
+        int size = 0; 
+        if (this.superClass != null) {
+            size += this.superClass.getSuperFieldsSize();
+        }
+        for (int i=0; i < this.getFieldsCount(); i++) {
+            size += this.fields.get(i).getSize();
+        }
+        return size;
+    }
+
     public void addMethod(MethodType method) {
         // Adds <method> in Methods list.
         if (this.isValidMethod(method)) {

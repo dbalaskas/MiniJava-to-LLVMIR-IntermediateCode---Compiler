@@ -29,18 +29,19 @@ define i32 @main() {
 
 	%f = alloca i8*
 
+
 	%_0 = call i8* @calloc(i32 1, i32 8)
 	%_1 = bitcast i8* %_0 to i8***
 	%_2 = getelementptr [1 x i8*], [1 x i8*]* @.F_vtable, i32 0, i32 0
 	store i8** %_2, i8*** %_1
-
 	store i8* %_0, i8** %f
-	%_3 = call i8* @calloc(i32 1, i32 12)
+
+	%_3 = call i8* @calloc(i32 1, i32 16)
 	%_4 = bitcast i8* %_3 to i8***
 	%_5 = getelementptr [0 x i8*], [0 x i8*]* @.B_vtable, i32 0, i32 0
 	store i8** %_5, i8*** %_4
-
 	store i8* %_3, i8** %b
+
 	%_6 = load i8*, i8** %f
 	; F.foo : 0
 	%_7 = bitcast i8* %_6 to i8***
@@ -50,8 +51,8 @@ define i32 @main() {
 	%_11 = bitcast i8* %_10 to i32 (i8*, i8*)*
 	%_13 = load i8*, i8** %b
 	%_12 = call i32 %_11(i8* %_6, i8* %_13)
-
 	store i32 %_12, i32* %i
+
 	%_14 = load i32, i32* %i
 	call void (i32) @print_int(i32 %_14)
 

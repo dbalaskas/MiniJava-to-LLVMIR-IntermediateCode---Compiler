@@ -21,11 +21,11 @@ define void @throw_oob() {
 }
 
 define i32 @main() {
+
 	%_0 = call i8* @calloc(i32 1, i32 19)
 	%_1 = bitcast i8* %_0 to i8***
 	%_2 = getelementptr [1 x i8*], [1 x i8*]* @.Operator_vtable, i32 0, i32 0
 	store i8** %_2, i8*** %_1
-
 	; Operator.compute : 0
 	%_3 = bitcast i8* %_0 to i8***
 	%_4 = load i8**, i8*** %_3
@@ -33,24 +33,41 @@ define i32 @main() {
 	%_6 = load i8*, i8** %_5
 	%_7 = bitcast i8* %_6 to i32 (i8*)*
 	%_8 = call i32 %_7(i8* %_0)
-
 	call void (i32) @print_int(i32 %_8)
 
 	ret i32 0
 }
 
 define i32 @Operator.compute(i8* %this) {
-	store i1 1, i1* %op1bool
-	store i1 0, i1* %op2bool
-	%_0 = load i1, i1* %op1bool
-	store i1 %_0, i1 %_1
-	br i1 %_0, label %l1, label %l0
 
-%l1:
-	%_2 = load i1, i1* %op2bool
-	store i1 %_2, i1 %_1
-%l0:
-	store %_1, i1* %result
+	%_0 = getelementptr i8, i8* %this, i32 8
+	%_1 = bitcast i8* %_0 to i1*
+	store i1 1, i1* %_1
+
+	%_2 = getelementptr i8, i8* %this, i32 9
+	%_3 = bitcast i8* %_2 to i1*
+	store i1 0, i1* %_3
+
+	%_4 = getelementptr i8, i8* %this, i32 8
+	%_5 = bitcast i8* %_4 to i1*
+	%_6 = load i1, i1* %_5
+	br i1 %_6, label %l1, label %l0
+
+l1:
+	%_8 = getelementptr i8, i8* %this, i32 9
+	%_9 = bitcast i8* %_8 to i1*
+	%_10 = load i1, i1* %_9
+	br label %l2
+
+l0:
+	br label %l2
+
+l2:
+	%_7 = phi i1 [ 0, %l0], [ %_10, %l1]
+
+	%_11 = getelementptr i8, i8* %this, i32 18
+	%_12 = bitcast i8* %_11 to i1*
+	store i1 %_10, i1* %_12
 	ret i32 0
 }
 

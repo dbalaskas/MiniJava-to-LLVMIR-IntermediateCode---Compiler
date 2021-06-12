@@ -21,11 +21,11 @@ define void @throw_oob() {
 }
 
 define i32 @main() {
+
 	%_0 = call i8* @calloc(i32 1, i32 8)
 	%_1 = bitcast i8* %_0 to i8***
 	%_2 = getelementptr [1 x i8*], [1 x i8*]* @.Fac_vtable, i32 0, i32 0
 	store i8** %_2, i8*** %_1
-
 	; Fac.ComputeFac : 0
 	%_3 = bitcast i8* %_0 to i8***
 	%_4 = load i8**, i8*** %_3
@@ -33,7 +33,6 @@ define i32 @main() {
 	%_6 = load i8*, i8** %_5
 	%_7 = bitcast i8* %_6 to i32 (i8*, i32)*
 	%_8 = call i32 %_7(i8* %_0, i32 10)
-
 	call void (i32) @print_int(i32 %_8)
 
 	ret i32 0
@@ -46,60 +45,36 @@ define i32 @Fac.ComputeFac(i8* %this, i32 %.num) {
 
 	%arr = alloca i32*
 
-	%_0 = add i32 1, 5
-	%_1 = icmp sge i32 %_0, 1
-	br i1 %_1, label %oob_safe3, label %oob_error4
 
-%oob_error4:
-	call void @throw_oob()
-%oob_safe3:
-	%_0 = add i32 1, 5
-	%_1 = call i8* @calloc(i32 %_0 , i32 4)
-	%_2 = bitcast i8* %_1 to i32*
-	store 5, i32* %_2
+	%_0 = load i32, i32* %num
+	%_1 = icmp slt i32 %_0, 1
+	br i1 %_1, label %if_then2, label %if_else3
 
-	store i32* %_2, i32** %arr
-	%_5 = load i32*, i32** %arr
-	%_6 = load i32, [Ljava.lang.String;@1698c449
-	%_7 = icmp sge [Ljava.lang.String;@5ef04b5, 0
-	%_10 = icmp slt [Ljava.lang.String;@5ef04b5, %_6
-	%_11 = and i1 %_7, %_10
-	br i1 %_11, label %oob_safe8, label %oob_error9
+if_then2:
 
-%oob_error9:
-	call void @throw_oob()
-	br label %oob_safe8
-
-%oob_safe8:
-	%_12 = add [Ljava.lang.String;@5ef04b5, 1
-	%_13 = getelementptr i32, [Ljava.lang.String;@1698c449, i32 %_12
-	%_14 = load i32, i32* %_13
-	call void (i32) @print_int(i32 %_14)
-	%_15 = load i32, i32* %num
-	%_16 = icmp slt i32 %_15, 1
-	br i1 %_16, label %then17, label %else18
-
-%then17:
 	store i32 1, i32* %num_aux
 
-	br  label %end19
+	br label %if_end4
 
-%else18:
-	%_20 = load i32, i32* %num
+if_else3:
+
+	%_5 = load i32, i32* %num
 	; Fac.ComputeFac : 0
-	%_21 = bitcast i8* %this to i8***
-	%_22 = load i8**, i8*** %_21
-	%_23 = getelementptr i8*, i8** %_22, i32 0
-	%_24 = load i8*, i8** %_23
-	%_25 = bitcast i8* %_24 to i32 (i8*, i32)*
-	%_27 = load i32, i32* %num
-	%_28 = sub i32 %_27, 1
-	%_26 = call i32 %_25(i8* %this, i32 %_28)
+	%_6 = bitcast i8* %this to i8***
+	%_7 = load i8**, i8*** %_6
+	%_8 = getelementptr i8*, i8** %_7, i32 0
+	%_9 = load i8*, i8** %_8
+	%_10 = bitcast i8* %_9 to i32 (i8*, i32)*
+	%_12 = load i32, i32* %num
+	%_13 = sub i32 %_12, 1
+	%_11 = call i32 %_10(i8* %this, i32 %_13)
+	%_14 = mul i32 %_5, %_11
+	store i32 %_14, i32* %num_aux
 
-	%_29 = mul i32 %_20, %_26
-	store i32 %_29, i32* %num_aux
-%end19:
-	%_30 = load i32, i32* %num_aux
-	ret i32 %_30
+	br label %if_end4
+
+if_end4:
+	%_15 = load i32, i32* %num_aux
+	ret i32 %_15
 }
 

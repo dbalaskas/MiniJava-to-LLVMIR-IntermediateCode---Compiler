@@ -127,8 +127,30 @@ public class MethodType extends SymbolTableNode {
         return methodClass.getField(varName);
     }
 
+    public VariableType getLocalVariable(String varName) {
+        // Returns value of Variables with name: <varName> if exists. Else returns null.
+        // Firstly search variable in method's variables.
+        for (int i = 0; i < this.getVariablesCount(); i++) {
+            if (this.variables.get(i).getName().equals(varName)) return this.variables.get(i);
+        }
+        if (this.isMain()) return null;
+        // Secondly search variable in method's arguments, if method is not the main.
+        for (int i = 0; i < this.getArgumentsCount(); i++) {
+            if (this.arguments.get(i).getName().equals(varName)) return this.arguments.get(i);
+        }
+        return null;
+    }
+
     public String getVariableType(String variableName){
         VariableType variable = this.getVariable(variableName);
+        if (variable != null) {
+            return variable.getType();
+        }
+        return null;
+    }
+
+    public String getLocalVariableType(String variableName){
+        VariableType variable = this.getLocalVariable(variableName);
         if (variable != null) {
             return variable.getType();
         }

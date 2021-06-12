@@ -21,11 +21,11 @@ define void @throw_oob() {
 }
 
 define i32 @main() {
+
 	%_0 = call i8* @calloc(i32 1, i32 16)
 	%_1 = bitcast i8* %_0 to i8***
 	%_2 = getelementptr [1 x i8*], [1 x i8*]* @.Test_vtable, i32 0, i32 0
 	store i8** %_2, i8*** %_1
-
 	; Test.start : 0
 	%_3 = bitcast i8* %_0 to i8***
 	%_4 = load i8**, i8*** %_3
@@ -33,14 +33,16 @@ define i32 @main() {
 	%_6 = load i8*, i8** %_5
 	%_7 = bitcast i8* %_6 to i32 (i8*)*
 	%_8 = call i32 %_7(i8* %_0)
-
 	call void (i32) @print_int(i32 %_8)
 
 	ret i32 0
 }
 
 define i32 @Test.start(i8* %this) {
-	store i8* %this, i8** %test
+
+	%_0 = getelementptr i8, i8* %this, i32 8
+	%_1 = bitcast i8* %_0 to i8**
+	store i8* %this, i8** %_1
 	ret i32 0
 }
 

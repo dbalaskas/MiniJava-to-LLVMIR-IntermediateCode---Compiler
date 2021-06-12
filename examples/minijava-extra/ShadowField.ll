@@ -23,12 +23,13 @@ define void @throw_oob() {
 define i32 @main() {
 	%a = alloca i8*
 
+
 	%_0 = call i8* @calloc(i32 1, i32 12)
 	%_1 = bitcast i8* %_0 to i8***
 	%_2 = getelementptr [2 x i8*], [2 x i8*]* @.A_vtable, i32 0, i32 0
 	store i8** %_2, i8*** %_1
-
 	store i8* %_0, i8** %a
+
 	%_3 = load i8*, i8** %a
 	; A.foo : 0
 	%_4 = bitcast i8* %_3 to i8***
@@ -37,8 +38,8 @@ define i32 @main() {
 	%_7 = load i8*, i8** %_6
 	%_8 = bitcast i8* %_7 to i8* (i8*)*
 	%_9 = call i8* %_8(i8* %_3)
-
 	store i8* %_9, i8** %a
+
 	%_10 = load i8*, i8** %a
 	; A.get : 1
 	%_11 = bitcast i8* %_10 to i8***
@@ -47,7 +48,6 @@ define i32 @main() {
 	%_14 = load i8*, i8** %_13
 	%_15 = bitcast i8* %_14 to i32 (i8*)*
 	%_16 = call i32 %_15(i8* %_10)
-
 	call void (i32) @print_int(i32 %_16)
 
 	ret i32 0
@@ -56,18 +56,20 @@ define i32 @main() {
 define i8* @A.foo(i8* %this) {
 	%x = alloca i8*
 
+
 	%_0 = call i8* @calloc(i32 1, i32 12)
 	%_1 = bitcast i8* %_0 to i8***
 	%_2 = getelementptr [2 x i8*], [2 x i8*]* @.A_vtable, i32 0, i32 0
 	store i8** %_2, i8*** %_1
-
 	store i8* %_0, i8** %x
 	%_3 = load i8*, i8** %x
 	ret i8* %_3
 }
 
 define i32 @A.get(i8* %this) {
-	%_0 = load i32, i32* %x
-	ret i32 %_0
+	%_0 = getelementptr i8, i8* %this, i32 8
+	%_1 = bitcast i8* %_0 to i32*
+	%_2 = load i32, i32* %_1
+	ret i32 %_2
 }
 

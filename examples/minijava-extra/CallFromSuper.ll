@@ -1,6 +1,6 @@
 @.CallFromSuper_vtable = global [0 x i8*] []
 @.A_vtable = global [1 x i8*] [i8* bitcast (i32 (i8*)* @A.foo to i8*)]
-@.B_vtable = global [0 x i8*] []
+@.B_vtable = global [1 x i8*] [i8* bitcast (i32 (i8*)* @A.foo to i8*)]
 
 declare i8* @calloc(i32, i32)
 declare i32 @printf(i8*, ...)
@@ -26,12 +26,13 @@ define i32 @main() {
 
 	%rv = alloca i32
 
+
 	%_0 = call i8* @calloc(i32 1, i32 8)
 	%_1 = bitcast i8* %_0 to i8***
-	%_2 = getelementptr [0 x i8*], [0 x i8*]* @.B_vtable, i32 0, i32 0
+	%_2 = getelementptr [1 x i8*], [1 x i8*]* @.B_vtable, i32 0, i32 0
 	store i8** %_2, i8*** %_1
-
 	store i8* %_0, i8** %b
+
 	%_3 = load i8*, i8** %b
 	; B.foo : 0
 	%_4 = bitcast i8* %_3 to i8***
@@ -40,8 +41,8 @@ define i32 @main() {
 	%_7 = load i8*, i8** %_6
 	%_8 = bitcast i8* %_7 to i32 (i8*)*
 	%_9 = call i32 %_8(i8* %_3)
-
 	store i32 %_9, i32* %rv
+
 	%_10 = load i32, i32* %rv
 	call void (i32) @print_int(i32 %_10)
 

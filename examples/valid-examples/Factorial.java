@@ -9,8 +9,6 @@ class Fac {
         int num_aux;
         int[] arr;
 
-        arr = new int[5];
-        System.out.println(arr[8]);
         if (num < 1)
             num_aux = 1 ;
         else

@@ -52,9 +52,9 @@ public class CodeGenVisitor extends GJDepthFirst < String[], SymbolTableNode > {
 
 	private String newLabel(String name) {
     if (name != null) {
-		  return "%" + name + String.valueOf(registersCounter++);
+		  return "" + name + String.valueOf(registersCounter++);
     }
-		return "%l" + String.valueOf(labelsCounter++);
+		return "l" + String.valueOf(labelsCounter++);
 	}
 
 	private String getType(String type) {
@@ -94,21 +94,23 @@ public class CodeGenVisitor extends GJDepthFirst < String[], SymbolTableNode > {
 	}
 
 	private void setVTables() {
-		int methodsNum, argsNum;
+		int methodsNum,argsNum;
+		List<MethodType> methods;
 		ClassType curClass;
 		MethodType curMethod;
 		// For each class in SymbolTable.
 		for (Map.Entry < String, ClassType > entry: SymbolTable.classes.entrySet()) {
 			curClass = entry.getValue();
-			methodsNum = curClass.getMethodsCount();
+			methods = curClass.getSuperMethods();
+			methodsNum = methods.size();
 			if (curClass.isMain()) {
 				this.emit("@." + curClass.getName() + "_vtable = global [" + (methodsNum - 1) + " x i8*] [");
 			} else {
 				this.emit("@." + curClass.getName() + "_vtable = global [" + methodsNum + " x i8*] [");
 			}
-			// For each method in class.
+			// For each method in class and superclasses.
 			for (int i = 0; i < methodsNum; i++) {
-				curMethod = curClass.getMethod(i);
+				curMethod = methods.get(i);
 				// If method of class is the main method, then continue.
 				if (curMethod.isMain()) continue;
 				argsNum = curMethod.getArgumentsCount();
@@ -117,11 +119,10 @@ public class CodeGenVisitor extends GJDepthFirst < String[], SymbolTableNode > {
 				for (int j = 0; j < argsNum; j++) {
 					this.emit(", " + this.getType(curMethod.getArgument(j).getType()));
 				}
-				this.emit(")* @" + curClass.getName() + "." + curMethod.getName() + " to i8*)");
+				this.emit(")* @" + curMethod.getClassName() + "." + curMethod.getName() + " to i8*)");
 				if (i < methodsNum - 1) {
 					this.emit(", ");
 				}
-
 			}
 			this.emit("]\n");
 		}
@@ -402,6 +403,7 @@ public class CodeGenVisitor extends GJDepthFirst < String[], SymbolTableNode > {
 	 *       | PrintStatement()
 	 */
 	public String[] visit(Statement n, SymbolTableNode argu) throws Exception {
+		this.emit("\n");
 		return n.f0.accept(this, argu);
 	}
 
@@ -431,7 +433,7 @@ public class CodeGenVisitor extends GJDepthFirst < String[], SymbolTableNode > {
 		String expr = n.f2.accept(this, argu)[0];
 
     // Emit to <.ll> file.
-		String type = curMethod.getVariable(varName).getType();
+		String type = curMethod.getLocalVariableType(varName);
 		if (type != null) {
 			this.emit("\tstore " + expr + ", " + this.getType(type) + "* %" + varName + "\n");
 		} else {
@@ -467,10 +469,10 @@ public class CodeGenVisitor extends GJDepthFirst < String[], SymbolTableNode > {
 		String expr2 = n.f5.accept(this, argu)[0];
 
 		String reg1, reg2;
-		String type = curMethod.getVariableType(varName);
+		String type = curMethod.getLocalVariableType(varName);
 		if (type != null) {
       reg1 = this.newRegister(null);
-			this.emit("\t" + reg1 + " = load" + this.getType(type) + ", " + this.getType(type) + "* %" + varName + "\n");
+			this.emit("\t" + reg1 + " = load " + this.getType(type) + ", " + this.getType(type) + "* %" + varName + "\n");
 		} else {
 			ClassType curClass = curMethod.getMethodClass();
 			type = curClass.getFieldType(varName);
@@ -490,17 +492,18 @@ public class CodeGenVisitor extends GJDepthFirst < String[], SymbolTableNode > {
     String reg3 = this.newRegister(null);
 		String reg4 = this.newRegister(null);
     String reg5 = this.newRegister(null);
-    String oobSafeLabel = this.newLabel(null);
-    String oobErrorLabel = this.newLabel(null);
+    String oobSafeLabel = this.newLabel("oob_safe");
+    String oobErrorLabel = this.newLabel("oob_error");
 
     emit("\t" + reg2 + " = load i32, i32* " + reg1 + "\n");
     this.emit("\t" + reg3 + " = icmp sge " + expr1 + ", 0\n");
     this.emit("\t" + reg4 + " = icmp slt " + expr1 + ", " + reg2 + "\n");
     this.emit("\t" + reg5 + " = and i1 " + reg3 + ", " + reg4 + "\n");
-    this.emit("\tbr i1 " + reg5 + ", label " + oobSafeLabel + ", label " + oobErrorLabel + "\n\n");
+    this.emit("\tbr i1 " + reg5 + ", label %" + oobSafeLabel + ", label %" + oobErrorLabel + "\n\n");
 
     this.emit(oobErrorLabel + ":\n");
     this.emit("\tcall void @throw_oob()\n");
+	this.emit("\n\tbr label %" + oobSafeLabel + "\n\n");
 
     this.emit(oobSafeLabel + ":\n");
     reg4 = this.newRegister(null);
@@ -524,18 +527,19 @@ public class CodeGenVisitor extends GJDepthFirst < String[], SymbolTableNode > {
 	public String[] visit(IfStatement n, SymbolTableNode argu) throws Exception {
 		String expr = n.f2.accept(this, argu)[0];
 
-		String ifThen = this.newLabel("then");
-		String ifElse = this.newLabel("else");
-		String ifEnd = this.newLabel("end");
+		String ifThen = this.newLabel("if_then");
+		String ifElse = this.newLabel("if_else");
+		String ifEnd = this.newLabel("if_end");
 
-		this.emit("\tbr " + expr + ", label " + ifThen + ", label " + ifElse + "\n\n");
+		this.emit("\tbr " + expr + ", label %" + ifThen + ", label %" + ifElse + "\n\n");
 
     this.emit(ifThen + ":\n");
     n.f4.accept(this, argu);
-		this.emit("\n\tbr  label " + ifEnd + "\n\n");
+		this.emit("\n\tbr label %" + ifEnd + "\n\n");
 
     this.emit(ifElse + ":\n");
 		n.f6.accept(this, argu);
+		this.emit("\n\tbr label %" + ifEnd + "\n\n");
 
     this.emit(ifEnd + ":\n");
 
@@ -550,16 +554,18 @@ public class CodeGenVisitor extends GJDepthFirst < String[], SymbolTableNode > {
 	 * f4 -> Statement()
 	 */
 	public String[] visit(WhileStatement n, SymbolTableNode argu) throws Exception {
-		String loopStart = this.newLabel("cond");
-		String labelBody = this.newLabel("while");
-		String loopEnd = this.newLabel("end");
+		String loopStart = this.newLabel("while_cond");
+		String labelBody = this.newLabel("while_body");
+		String loopEnd = this.newLabel("while_end");
 
-    this.emit(loopStart + ":\n");
-    String expr = n.f2.accept(this, argu)[0];
-		this.emit("\tbr " + expr + ", label " + labelBody + ", label " + loopEnd + "\n\n");
+		this.emit("\n\tbr label %" + loopStart + "\n\n");
+		this.emit(loopStart + ":\n");
+		String expr = n.f2.accept(this, argu)[0];
+		this.emit("\tbr " + expr + ", label %" + labelBody + ", label %" + loopEnd + "\n\n");
 
-    this.emit(labelBody + ":\n");
+    	this.emit(labelBody + ":\n");
 		n.f4.accept(this, argu);
+		this.emit("\n\tbr label %" + loopStart + "\n\n");
 
     this.emit(loopEnd + ":\n");
 
@@ -604,18 +610,22 @@ public class CodeGenVisitor extends GJDepthFirst < String[], SymbolTableNode > {
 
     String falseLabel = this.newLabel(null);
     String trueLabel = this.newLabel(null);
+    String endLabel = this.newLabel(null);
     String reg = this.newRegister(null);
 
-    this.emit("\tstore " + clause + ", i1 " + reg + "\n");
-    this.emit("\tbr " + clause + ", label " + trueLabel + ", label " + falseLabel + "\n\n");
+    this.emit("\tbr " + clause + ", label %" + trueLabel + ", label %" + falseLabel + "\n\n");
 
-    this.emit(trueLabel + ":\n");
-    clause = n.f2.accept(this, argu)[0];
-		this.emit("\tstore " + clause + ", i1 " + reg + "\n");
+	this.emit(trueLabel + ":\n");
+	clause = n.f2.accept(this, argu)[0];
+	this.emit("\tbr label %" + endLabel + "\n\n");
 
-    this.emit(falseLabel + ":\n");
+	this.emit(falseLabel + ":\n");
+	this.emit("\tbr label %" + endLabel + "\n\n");
 
-    return  new String[] {reg};
+	this.emit(endLabel + ":\n");
+	this.emit("\t" + reg + " = phi i1 [ 0, %" + falseLabel + "], [ " + clause.split(" ")[1] + ", %" + trueLabel + "]\n\n");
+
+    return new String[] {clause};
 	}
 
 	/**
@@ -697,8 +707,8 @@ public class CodeGenVisitor extends GJDepthFirst < String[], SymbolTableNode > {
 	 * f3 -> "]"
 	 */
 	public String[] visit(ArrayLookup n, SymbolTableNode argu) throws Exception {
-    String[] expr1 = n.f0.accept(this, argu);
-    String[] expr2 = n.f2.accept(this, argu);
+    String expr1 = n.f0.accept(this, argu)[0];
+    String expr2 = n.f2.accept(this, argu)[0];
 
     String reg1 = this.newRegister(null);
     String reg2 = this.newRegister(null);
@@ -713,11 +723,13 @@ public class CodeGenVisitor extends GJDepthFirst < String[], SymbolTableNode > {
     this.emit("\t" + reg2 + " = icmp sge " + expr2 + ", 0\n");
     this.emit("\t" + reg3 + " = icmp slt " + expr2 + ", " + reg1 + "\n");
     this.emit("\t" + reg4 + " = and i1 " + reg2 + ", " + reg3 + "\n");
-    this.emit("\tbr i1 " + reg4 + ", label " + obbSafeLabel + ", label " + oobErrorLabel + "\n\n");
-    this.emit(oobErrorLabel + ":\n");
+    this.emit("\tbr i1 " + reg4 + ", label %" + obbSafeLabel + ", label %" + oobErrorLabel + "\n\n");
+
+	this.emit(oobErrorLabel + ":\n");
     this.emit("\tcall void @throw_oob()\n");
-    this.emit("\tbr label " + obbSafeLabel + "\n\n");
-    this.emit(obbSafeLabel + ":\n");
+    this.emit("\tbr label %" + obbSafeLabel + "\n\n");
+
+	this.emit(obbSafeLabel + ":\n");
 
     reg4 = this.newRegister(null);
     this.emit("\t" + reg4 + " = add " + expr2 + ", " + offset + "\n");
@@ -728,7 +740,7 @@ public class CodeGenVisitor extends GJDepthFirst < String[], SymbolTableNode > {
     reg4 = this.newRegister(null);
     this.emit("\t" + reg4 + " = load i32, i32* " + reg3 +"\n");
 
-    return new String[] {"i32 " + reg4};
+    return new String[] {"i32 " + reg4, "int"};
 	}
 
 	/**
@@ -760,7 +772,7 @@ public class CodeGenVisitor extends GJDepthFirst < String[], SymbolTableNode > {
     String className = expr[1];
 		ClassType callClass = SymbolTable.getClass(className);
     if (callClass == null) {
-      VariableType curVariable = curMethod.getVariable(className);
+      VariableType curVariable = curMethod.getLocalVariable(className);
       if (curVariable != null) {
         className = curVariable.getType();
         callClass = SymbolTable.getClass(className);
@@ -773,13 +785,7 @@ public class CodeGenVisitor extends GJDepthFirst < String[], SymbolTableNode > {
 		MethodType callMethod = callClass.getMethod(methodName);
 
 		String type = callMethod.getReturnType();
-		int methodOffset = 0;
-		for (int i = 0; i < callClass.getMethodsCount(); i++) {
-			if (callClass.getMethod(i).getName().equals(methodName)) {
-				break;
-			}
-			methodOffset += 1;
-		}
+		int methodOffset = callClass.getMethodIndex(methodName);
 
 		String reg1 = this.newRegister(null);
 		String reg2 = this.newRegister(null);
@@ -800,9 +806,9 @@ public class CodeGenVisitor extends GJDepthFirst < String[], SymbolTableNode > {
 		reg2 = this.newRegister(null);
 		if (n.f4.present()) {
 			String argsList = n.f4.accept(this, argu)[0];
-			emit("\t" + reg2 + " = call " + this.getType(type) + " " + reg1 + "(" + expr[0] + ", " + argsList + ")\n\n");
+			emit("\t" + reg2 + " = call " + this.getType(type) + " " + reg1 + "(" + expr[0] + ", " + argsList + ")\n");
 		} else {
-			emit("\t" + reg2 + " = call " + this.getType(type) + " " + reg1 + "(" + expr[0] + ")\n\n");
+			emit("\t" + reg2 + " = call " + this.getType(type) + " " + reg1 + "(" + expr[0] + ")\n");
 		}
 		return new String[] {this.getType(type) + " " + reg2, type};
 	}
@@ -862,12 +868,12 @@ public class CodeGenVisitor extends GJDepthFirst < String[], SymbolTableNode > {
      String[] expr = n.f0.accept(this, argu);
 
 		 if (!expr[0].contains(" ")) {
-		   String type = curMethod.getVariableType(expr[0]);
+		   String type = curMethod.getLocalVariableType(expr[0]);
 		   if (type != null) {
 		     String reg = this.newRegister(null);
 		     this.emit("\t" + reg + " = load " + this.getType(type) + ", " + this.getType(type) + "* %" + expr[0] + "\n");
 
-         expr[0] = this.getType(type) + " " + reg;
+         	 expr[0] = this.getType(type) + " " + reg;
 		   } else {
 		     type = curMethod.getMethodClass().getFieldType(expr[0]);
 		     if (type != null) {
@@ -877,12 +883,16 @@ public class CodeGenVisitor extends GJDepthFirst < String[], SymbolTableNode > {
 
 		       ClassType curClass = curMethod.getMethodClass();
 		       int vTableSize = 8;
-		       for (int i=0; i < curClass.getFieldsCount(); i ++) {
-		         vTableSize += curClass.getField(i).getSize();
-		       }
-		       this.emit("\t"+ reg1 + " = getelementptr i8, i8* %this, i32 " + vTableSize + "\n");
+		    //    for (int i=0; i < curClass.getFieldsCount(); i ++) {
+			// 	 if (curClass.getField(i).getName().equals(expr[0])) {
+			// 	   break;
+			// 	 }
+		    //      vTableSize += curClass.getField(i).getSize();
+		    //    }
+			   int offset = curClass.getField(expr[0]).getOffset() + 8;
+			   this.emit("\t"+ reg1 + " = getelementptr i8, i8* %this, i32 " + offset + "\n");
 		       this.emit("\t" + reg2 + " = bitcast i8* " + reg1 + " to " + this.getType(type) + "*\n");
-		       this.emit("\t" + reg3 + " = load " + this.getType(type) +"," + this.getType(type) + "* "+ reg2 + "\n");
+		       this.emit("\t" + reg3 + " = load " + this.getType(type) +", " + this.getType(type) + "* "+ reg2 + "\n");
 		       expr[0] = this.getType(type) + " " + reg3;
 		     }
 		   }
@@ -936,26 +946,29 @@ public class CodeGenVisitor extends GJDepthFirst < String[], SymbolTableNode > {
 	 */
 	public String[] visit(ArrayAllocationExpression n, SymbolTableNode argu) throws Exception {
 		String expr = n.f3.accept(this, argu)[0];
-		expr = expr.split(" ")[1];
+		String regName = expr.split(" ")[1];
 		String reg1 = this.newRegister(null);
 		String reg2 = this.newRegister(null);
-		String reg3 = this.newRegister(null);
 
     String obbSafeLabel = this.newLabel("oob_safe");
     String oobErrorLabel = this.newLabel("oob_error");
 
-    this.emit("\t" + reg1 + " = add i32 1, " + expr + "\n");
+    this.emit("\t" + reg1 + " = add i32 1, " + regName + "\n");
     this.emit("\t" + reg2 + " = icmp sge i32 " + reg1 + ", 1\n" );
-    this.emit("\tbr i1 " + reg2 + ", label " + obbSafeLabel + ", label " + oobErrorLabel + "\n\n");
+    this.emit("\tbr i1 " + reg2 + ", label %" + obbSafeLabel + ", label %" + oobErrorLabel + "\n\n");
 
     this.emit(oobErrorLabel + ":\n");
     this.emit("\tcall void @throw_oob()\n");
+	this.emit("\n\tbr label %" + obbSafeLabel + "\n\n");
 
-    this.emit(obbSafeLabel + ":\n");
-		this.emit("\t" + reg1 + " = add i32 1, " + expr + "\n");
-		this.emit("\t" + reg2 + " = call i8* @calloc(i32 " + reg1 + " , i32 4)\n");
-		this.emit("\t" + reg3 + " = bitcast i8* " + reg2 + " to i32*\n");
-		this.emit("\tstore " + expr + ", i32* " + reg3 + "\n\n");
+	reg1 = this.newRegister(null);
+	reg2 = this.newRegister(null);
+	String reg3 = this.newRegister(null);
+	this.emit(obbSafeLabel + ":\n");
+	this.emit("\t" + reg1 + " = add i32 1, " + regName + "\n");
+	this.emit("\t" + reg2 + " = call i8* @calloc(i32 " + reg1 + " , i32 4)\n");
+	this.emit("\t" + reg3 + " = bitcast i8* " + reg2 + " to i32*\n");
+	this.emit("\tstore " + expr + ", i32* " + reg3 + "\n\n");
 
     String[] resp = new String[2];
     resp[0] = "i32* " + reg3;
@@ -976,16 +989,13 @@ public class CodeGenVisitor extends GJDepthFirst < String[], SymbolTableNode > {
 		String reg2 = this.newRegister(null);
 		String reg3 = this.newRegister(null);
 
-		int vTableSize = 8;
-		for (int i = 0; i < curClass.getFieldsCount(); i++) {
-			vTableSize += curClass.getField(i).getSize();
-		}
+		int vTableSize = 8 + curClass.getSuperFieldsSize();
 
 		this.emit("\t" + reg1 + " = call i8* @calloc(i32 1, i32 " + vTableSize + ")\n");
 		this.emit("\t" + reg2 + " = bitcast i8* " + reg1 + " to i8***\n");
 
-		this.emit("\t" + reg3 + " = getelementptr [" + curClass.getMethodsCount() + " x i8*], [" + curClass.getMethodsCount() + " x i8*]* @." + className + "_vtable, i32 0, i32 0\n");
-		this.emit("\tstore i8** " + reg3 + ", i8*** " + reg2 + "\n\n");
+		this.emit("\t" + reg3 + " = getelementptr [" + curClass.getSuperMethodsCount() + " x i8*], [" + curClass.getSuperMethodsCount() + " x i8*]* @." + className + "_vtable, i32 0, i32 0\n");
+		this.emit("\tstore i8** " + reg3 + ", i8*** " + reg2 + "\n");
 
     String[] resp = new String[2];
     resp[0] = "i8* " + reg1;
@@ -1001,7 +1011,7 @@ public class CodeGenVisitor extends GJDepthFirst < String[], SymbolTableNode > {
 		n.f0.accept(this, argu);
 		String[] clause = n.f1.accept(this, argu);
 		String reg = this.newRegister(null);
-		this.emit("\t" + reg + " = xor i1 1, " + clause[0].split(" ")[1]);
+		this.emit("\t" + reg + " = xor i1 1, " + clause[0].split(" ")[1] + "\n");
 
     String[] resp = new String[2];
     resp[0] = "i1 " + reg;
